@@ -103,8 +103,8 @@ logger.debug("Data loaded ...")
 """Here are two models, one basemodel, another is temporal contrastive model"""
 # model = Time_Model(configs).to(device)
 # model_F = Frequency_Model(configs).to(device) #base_Model_F(configs).to(device) """here is right. No bug in this line.
-TFC_model = TFC(configs).to(device)
-classifier = target_classifier(configs).to(device)
+TFC_model = TFC((1,configs.input_channels, configs.TSlength_aligned), configs.num_classes).to(device)
+classifier = target_classifier(TFC_model.n_out*2, configs.num_classes_target).to(device)
 
 temporal_contr_model = None #TC(configs, device).to(device)
 

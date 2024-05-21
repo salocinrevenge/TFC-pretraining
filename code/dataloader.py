@@ -72,7 +72,6 @@ def convert(dataset, ncanais = 6, original = False, tamanho = 60):
         dataset = np.asarray(dataset)
         dataset = {"samples": torch.tensor(dataset[:, :tamanho*ncanais],dtype=torch.float64), "labels": torch.tensor(dataset[:,1800],dtype=torch.int32)}
         dataset["samples"] = dataset["samples"].reshape(dataset["samples"].shape[0], ncanais, -1)
-        print(dataset["samples"].shape)
     else:
         dataset = {"samples": torch.tensor(dataset.iloc[:, :tamanho*ncanais].values,dtype=torch.float64), "labels": torch.tensor(dataset.iloc[:,-1].values,dtype=torch.int32)}
         dataset["samples"] = dataset["samples"].reshape(dataset["samples"].shape[0], ncanais, -1)
@@ -87,7 +86,6 @@ def data_generator(sourcedata_path, targetdata_path, configs, training_mode, sub
             finetune_dataset = pd.read_csv(os.path.join(targetdata_path, "train.csv"), header=None)
             test_dataset = pd.read_csv(os.path.join(targetdata_path, "test.csv"), header=None)
 
-            print(f"tamanho da TS: {configs.TSlength_aligned}")
             train_dataset = convert(train_dataset, configs.input_channels, True, configs.TSlength_aligned)
             finetune_dataset = convert(finetune_dataset, configs.input_channels, True, configs.TSlength_aligned)
             test_dataset = convert(test_dataset, configs.input_channels, True, configs.TSlength_aligned)

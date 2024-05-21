@@ -6,7 +6,7 @@ class Config(object):
         self.stride = 1
         self.final_out_channels = 60
 
-        self.num_classes = 6
+        self.num_classes = 18
         self.dropout = 0.35
         self.features_len = 18
 
@@ -32,7 +32,7 @@ class Config(object):
         self.target_batch_size = 42#  84
         self.increased_dim = 1
         self.final_out_channels = 128
-        self.num_classes_target = 6
+        self.num_classes_target = 18
         self.features_len_f = self.features_len
         self.CNNoutput_channel = 10#  104
 

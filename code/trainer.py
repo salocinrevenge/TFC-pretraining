@@ -54,7 +54,6 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
         """fine-tune"""
         print('Fine-tune  on Fine-tuning set')
         performance_list = []
-        total_f1 = []
         for epoch in range(1, config.num_epoch + 1):
             valid_loss, valid_acc, valid_auc, valid_prc, emb_finetune, label_finetune, F1 = model_finetune(model, temporal_contr_model, valid_dl, config, device, training_mode,
                                                    model_optimizer, model_F=model_F, model_F_optimizer=model_F_optimizer,
@@ -66,22 +65,11 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
                          f'finetune Loss  : {valid_loss:.4f}\t | \tfinetune Accuracy : {valid_acc:2.4f}\t | '
                          f'\tfinetune AUC : {valid_auc:2.4f} \t |finetune PRC: {valid_prc:0.4f} ')
 
-            # # save best fine-tuning model""
-            # global arch
-            # arch = 'sleepedf2eplipsy'
-            # if len(total_f1) == 0 or F1 > max(total_f1):
-            #     print('update fine-tuned model')
-            #     os.makedirs('experiments_logs/finetunemodel/', exist_ok=True)
-            #     torch.save(model.state_dict(), 'experiments_logs/finetunemodel/' + arch + '_model.pt')
-            #     torch.save(classifier.state_dict(), 'experiments_logs/finetunemodel/' + arch + '_classifier.pt')
-            # total_f1.append(F1)
 
 
             # evaluate on the test set
             """Testing set"""
             logger.debug('\nTest on Target datasts test set')
-            # model.load_state_dict(torch.load('experiments_logs/finetunemodel/' + arch + '_model.pt'))
-            # classifier.load_state_dict(torch.load('experiments_logs/finetunemodel/' + arch + '_classifier.pt'))
             test_loss, test_acc, test_auc, test_prc, emb_test, label_test, performance = model_test(model, temporal_contr_model, test_dl, config, device, training_mode,
                                                                 model_F=model_F, model_F_optimizer=model_F_optimizer,
                                                              classifier=classifier, classifier_optimizer=classifier_optimizer)
@@ -91,30 +79,6 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
         best_performance = performance_array[np.argmax(performance_array[:,0], axis=0)]
         print('Best Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | PRC=%.4f'
               % (best_performance[0], best_performance[1], best_performance[2], best_performance[3], best_performance[4], best_performance[5]))
-
-        # # train classifier: KNN
-        # neigh = KNeighborsClassifier(n_neighbors=1)
-        # print(f"{emb_finetune.shape=}, {emb_finetune=}, {label_finetune.shape=},{label_finetune=}")
-        # neigh.fit(emb_finetune.detach().cpu().numpy(), label_finetune)
-        # knn_acc_train = neigh.score(emb_finetune.detach().cpu().numpy(), label_finetune)
-        # print('KNN finetune acc:', knn_acc_train)
-        # # test the downstream classifier
-        # representation_test = emb_test.detach().cpu().numpy()
-        # knn_result = neigh.predict(representation_test)
-        # knn_result_score = neigh.predict_proba(representation_test)
-        # one_hot_label_test = one_hot_encoding(label_test)
-        # print("metrics")
-        # print(classification_report(label_test, knn_result, digits=4))
-        # print("confusion matrix")
-        # print(confusion_matrix(label_test, knn_result))
-        # knn_acc = accuracy_score(label_test, knn_result)
-        # precision = precision_score(label_test, knn_result, average='macro', )
-        # recall = recall_score(label_test, knn_result, average='macro', )
-        # F1 = f1_score(label_test, knn_result, average='macro')
-        # auc = roc_auc_score(knn_result_score, one_hot_label_test, average="macro", multi_class="ovr")
-        # prc = average_precision_score(knn_result_score, one_hot_label_test, average="macro")
-        # print("KNN Train Acc:{}. '\n' Test: acc {}, precision {}, Recall {}, F1 {}, AUROC {}, AUPRC {}"
-        #       "".format(knn_acc_train, knn_acc, precision, recall, F1, auc, prc))
 
     logger.debug("\n################## Training is Done! #########################")
 
@@ -230,13 +194,11 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
         #verifica qual classe de labels nao possui exemplos
         no_examples_classes = [i for i in range(config.num_classes_target) if i not in labels]
         # remove as colunas de indice em no_examples_classes
-        # print(f"{no_examples_classes=}")
         pred_numpy_removed_classes = np.delete(pred_numpy, no_examples_classes, axis=1)
         onehot_label_removed_classes = np.delete(onehot_label.cpu(), no_examples_classes, axis=1)
 
-        # print(f"{onehot_label.detach().cpu().numpy()=}, {pred_numpy_removed_classes=}, {labels=}")
         auc_bs = roc_auc_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes, average="macro", multi_class="ovr" )
-        prc_bs = average_precision_score(onehot_label.detach().cpu().numpy(), pred_numpy)
+        prc_bs = average_precision_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes)
 
         total_acc.append(acc_bs)
         total_auc.append(auc_bs)
@@ -254,10 +216,10 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
 
     labels_numpy = labels.detach().cpu().numpy()
     pred_numpy = np.argmax(pred_numpy, axis=1)
-    precision = precision_score(labels_numpy, pred_numpy, average='macro', )  # labels=np.unique(ypred))
-    recall = recall_score(labels_numpy, pred_numpy, average='macro', )  # labels=np.unique(ypred))
-    F1 = f1_score(labels_numpy, pred_numpy, average='macro', )  # labels=np.unique(ypred))
-    print('Testing: Precision = %.4f | Recall = %.4f | F1 = %.4f' % (precision * 100, recall * 100, F1 * 100))
+    precision = precision_score(labels_numpy, pred_numpy, average='macro', zero_division=0)  # labels=np.unique(ypred))
+    recall = recall_score(labels_numpy, pred_numpy, average='macro', zero_division=0)  # labels=np.unique(ypred))
+    F1 = f1_score(labels_numpy, pred_numpy, average='macro', zero_division=0)  # labels=np.unique(ypred))
+    print('Testing during finetune: Precision = %.4f | Recall = %.4f | F1 = %.4f' % (precision * 100, recall * 100, F1 * 100))
 
     # """Save embeddings for visualization"""
     # pickle.dump(features1_f, open('embeddings/fea_t_withLc.p', 'wb'))
@@ -307,9 +269,14 @@ def model_test(model, temporal_contr_model, test_dl,config,  device, training_mo
                 onehot_label = F.one_hot(labels, num_classes=config.num_classes_target)
                 pred_numpy = predictions_test.detach().cpu().numpy()
                 labels_numpy = labels.detach().cpu().numpy()
-                auc_bs = roc_auc_score(onehot_label.detach().cpu().numpy(), pred_numpy,
+                no_examples_classes = [i for i in range(config.num_classes_target) if i not in labels]
+                # remove as colunas de indice em no_examples_classes
+                pred_numpy_removed_classes = np.delete(pred_numpy, no_examples_classes, axis=1)
+                onehot_label_removed_classes = np.delete(onehot_label.cpu(), no_examples_classes, axis=1)
+
+                auc_bs = roc_auc_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes,
                                        average="macro", multi_class="ovr")
-                prc_bs = average_precision_score(onehot_label.detach().cpu().numpy(), pred_numpy, average="macro")
+                prc_bs = average_precision_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes, average="macro")
 
                 pred_numpy = np.argmax(pred_numpy, axis=1)
                 # precision = precision_score(labels_numpy, pred_numpy, average='macro', )  # labels=np.unique(ypred))
@@ -334,9 +301,9 @@ def model_test(model, temporal_contr_model, test_dl,config,  device, training_mo
 
     # print('Test classification report', classification_report(labels_numpy_all, pred_numpy_all))
     # print(confusion_matrix(labels_numpy_all, pred_numpy_all))
-    precision = precision_score(labels_numpy_all, pred_numpy_all, average='macro', )
-    recall = recall_score(labels_numpy_all, pred_numpy_all, average='macro', )
-    F1 = f1_score(labels_numpy_all, pred_numpy_all, average='macro', )
+    precision = precision_score(labels_numpy_all, pred_numpy_all, average='macro', zero_division=0)
+    recall = recall_score(labels_numpy_all, pred_numpy_all, average='macro', zero_division=0)
+    F1 = f1_score(labels_numpy_all, pred_numpy_all, average='macro', zero_division=0)
     acc = accuracy_score(labels_numpy_all, pred_numpy_all, )
 
     total_loss = torch.tensor(total_loss).mean()
