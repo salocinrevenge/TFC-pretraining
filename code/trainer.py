@@ -232,6 +232,20 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
     total_prc = torch.tensor(total_prc).mean()
     return total_loss, total_acc, total_auc, total_prc, fea_concat_flat, trgs, F1
 
+def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion matrix', cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+
+
 def model_test(model, temporal_contr_model, test_dl,config,  device, training_mode, model_F=None, model_F_optimizer=None,
                classifier=None, classifier_optimizer=None, logger = None):
     model.eval()
@@ -298,6 +312,12 @@ def model_test(model, temporal_contr_model, test_dl,config,  device, training_mo
             pred_numpy_all = np.concatenate((pred_numpy_all, pred_numpy))
     labels_numpy_all = labels_numpy_all[1:]
     pred_numpy_all = pred_numpy_all[1:]
+
+    # plot confusion matrix using sklearn
+    cm = confusion_matrix(labels_numpy_all, pred_numpy_all)
+    class_names = [str(i) for i in range(config.num_classes_target)]
+    plot_confusion_matrix(cm, classes=class_names, title='Confusion matrix, without normalization')
+
 
     # print('Test classification report', classification_report(labels_numpy_all, pred_numpy_all))
     # print(confusion_matrix(labels_numpy_all, pred_numpy_all))
