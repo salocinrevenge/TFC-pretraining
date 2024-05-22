@@ -72,7 +72,7 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
             logger.debug('\nTest on Target datasts test set')
             test_loss, test_acc, test_auc, test_prc, emb_test, label_test, performance = model_test(model, temporal_contr_model, test_dl, config, device, training_mode,
                                                                 model_F=model_F, model_F_optimizer=model_F_optimizer,
-                                                             classifier=classifier, classifier_optimizer=classifier_optimizer)
+                                                             classifier=classifier, classifier_optimizer=classifier_optimizer, logger = logger)
 
             performance_list.append(performance)
         performance_array = np.array(performance_list)
@@ -233,7 +233,7 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
     return total_loss, total_acc, total_auc, total_prc, fea_concat_flat, trgs, F1
 
 def model_test(model, temporal_contr_model, test_dl,config,  device, training_mode, model_F=None, model_F_optimizer=None,
-               classifier=None, classifier_optimizer=None):
+               classifier=None, classifier_optimizer=None, logger = None):
     model.eval()
     classifier.eval()
 
@@ -315,8 +315,12 @@ def model_test(model, temporal_contr_model, test_dl,config,  device, training_mo
     # recal_mean = torch.tensor(total_recall).mean()
     # f1_mean = torch.tensor(total_f1).mean()
     performance = [acc * 100, precision * 100, recall * 100, F1 * 100, total_auc * 100, total_prc * 100]
-    print('Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | PRC=%.4f'
-          % (acc*100, precision * 100, recall * 100, F1 * 100, total_auc*100, total_prc*100))
+    if logger:
+        logger.debug('Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | PRC=%.4f'
+            % (acc*100, precision * 100, recall * 100, F1 * 100, total_auc*100, total_prc*100))
+    else:
+        print('Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | PRC=%.4f'
+            % (acc*100, precision * 100, recall * 100, F1 * 100, total_auc*100, total_prc*100))
 
     emb_test_all = torch.concat(tuple(emb_test_all))
     return total_loss, total_acc, total_auc, total_prc, emb_test_all, trgs, performance

@@ -79,7 +79,7 @@ def convert(dataset, ncanais = 6, original = False, tamanho = 60):
 
 def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True):
     csv = True
-    original = True
+    original = False
     if csv:
         if original:
             train_dataset = pd.read_csv(os.path.join(sourcedata_path, "train.csv"), header=None)
