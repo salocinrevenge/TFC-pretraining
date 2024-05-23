@@ -6,4 +6,3 @@ datasets
 *.log
 *.pt
 *.zip
-!datasets/KuHar_original/*.ipynb

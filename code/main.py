@@ -95,7 +95,7 @@ logger.debug("=" * 45)
 sourcedata_path = f"../datasets/{sourcedata}"  # './data/Epilepsy'
 targetdata_path = f"../datasets/{targetdata}"
 # for self-supervised, the data are augmented here. Only self-supervised learning need augmentation
-subset = False # if subset= true, use a subset for debugging.
+subset = True # if subset= true, use a subset for debugging.
 train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = subset)
 logger.debug("Data loaded ...")
 
@@ -103,8 +103,8 @@ logger.debug("Data loaded ...")
 """Here are two models, one basemodel, another is temporal contrastive model"""
 # model = Time_Model(configs).to(device)
 # model_F = Frequency_Model(configs).to(device) #base_Model_F(configs).to(device) """here is right. No bug in this line.
-TFC_model = TFC((1,configs.input_channels, configs.TSlength_aligned), configs.num_classes).to(device)
-classifier = target_classifier(TFC_model.n_out, configs.num_classes_target).to(device)
+TFC_model = TFC(configs).to(device)
+classifier = target_classifier(configs).to(device)
 
 temporal_contr_model = None #TC(configs, device).to(device)
 
@@ -123,7 +123,7 @@ temporal_contr_model = None #TC(configs, device).to(device)
 
 
 model_optimizer = torch.optim.Adam(TFC_model.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
-classifier_optimizer = torch.optim.Adam(classifier.fc.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
+classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
 temporal_contr_optimizer = None # torch.optim.Adam(temporal_contr_model.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
 
 #if training_mode == "pre_train":  # to do it only once

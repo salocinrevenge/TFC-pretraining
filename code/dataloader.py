@@ -9,7 +9,7 @@ import pandas as pd
 
 class Load_Dataset(Dataset):
     # Initialize your data, download, etc.
-    def __init__(self, dataset, config, training_mode, target_dataset_size=64, subset=False, shuffle=True):
+    def __init__(self, dataset, config, training_mode, target_dataset_size=64, subset=False):
         super(Load_Dataset, self).__init__()
         self.training_mode = training_mode
         X_train = dataset["samples"]
@@ -55,18 +55,7 @@ class Load_Dataset(Dataset):
         if training_mode == "pre_train":  # no need to apply Augmentations in other modes
             self.aug1 = DataTransform_TD(self.x_data, config)
             self.aug1_f = DataTransform_FD(self.x_data_f, config) # [7360, 1, 90]
-        if shuffle:
-            self.shuffle()
 
-    def shuffle(self):
-        indices = np.arange(self.len)
-        np.random.shuffle(indices)
-        self.x_data = self.x_data[indices]
-        self.y_data = self.y_data[indices]
-        if self.training_mode == "pre_train":
-            self.aug1 = self.aug1[indices]
-            self.aug1_f = self.aug1_f[indices]
-        self.x_data_f = self.x_data_f[indices]
 
     def __getitem__(self, index):
         if self.training_mode == "pre_train":
@@ -91,7 +80,9 @@ def convert(dataset, ncanais = 6, original = False, tamanho = 60):
 
 def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True):
     csv = True
-    original = True
+    original = False
+    if "original" in sourcedata_path:
+        original = True
     if csv:
         if original:
             train_dataset = pd.read_csv(os.path.join(sourcedata_path, "train.csv"), header=None)
