@@ -1,6 +1,7 @@
 import os
 import pickle
 import sys
+from tqdm import tqdm
 
 sys.path.append("..")
 import numpy as np
@@ -91,7 +92,9 @@ def model_pretrain(model, temporal_contr_model, model_optimizer, temp_cont_optim
     total_auc = []
     model.train()
 
-    for batch_idx, (data, labels, aug1, data_f, aug1_f) in enumerate(train_loader):
+    # for batch_idx, (data, labels, aug1, data_f, aug1_f) in enumerate(train_loader):
+    # usando tqdm
+    for data, labels, aug1, data_f, aug1_f in tqdm(train_loader):
         data, labels = data.float().to(device), labels.long().to(device) # data: [128, 1, 178], labels: [128]
         aug1 = aug1.float().to(device)  # aug1 = aug2 : [128, 1, 178]
         data_f, aug1_f = data_f.float().to(device), aug1_f.float().to(device)  # aug1 = aug2 : [128, 1, 178]
@@ -149,7 +152,7 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
     outs = np.array([])
     trgs = np.array([])
 
-    for data, labels, aug1, data_f, aug1_f in val_dl:
+    for data, labels, aug1, data_f, aug1_f in tqdm(val_dl):
         # print('Fine-tuning: {} of target samples'.format(labels.shape[0]))
         data, labels = data.float().to(device), labels.long().to(device)
         data_f = data_f.float().to(device)
@@ -207,29 +210,11 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
         total_prc.append(prc_bs)
         total_loss.append(loss.item())
         loss.backward()
-        # print("##############################\n#PARAMETROS DO MODELO#\n##############################")
-        # contador = 0
-        # for param in model.parameters():
-        #     contador+=1
-        #     print(param.shape)
-        #     print(param)
-        #     if contador == 2:
-        #         break
 
 
         model_optimizer.step()
 
-        # for i in range(len(list(model.parameters()))):
-        #     print(torch.tensor(list(model.parameters())[i]).std())
-        # print(list(model.parameters())[1])
-
-        # print("##############################\n#PARAMETROS DO CLASSIFICADOR#\n##############################")
-        # for param in classifier.parameters():
-        #     print(param)
         classifier_optimizer.step()
-        # print(f"##############################\n#PARAMETROS DO DEPOIS#\n##############################")
-        # for param in classifier.parameters():
-        #     print(param)
 
         if training_mode != "pre_train":
             pred = predictions.max(1, keepdim=True)[1]  # get the index of the max log-probability
@@ -242,7 +227,9 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
     precision = precision_score(labels_numpy, pred_numpy, average='macro', zero_division=0)  # labels=np.unique(ypred))
     recall = recall_score(labels_numpy, pred_numpy, average='macro', zero_division=0)  # labels=np.unique(ypred))
     F1 = f1_score(labels_numpy, pred_numpy, average='macro', zero_division=0)  # labels=np.unique(ypred))
-    print('Testing during finetune: Precision = %.4f | Recall = %.4f | F1 = %.4f' % (precision * 100, recall * 100, F1 * 100))
+    acc = accuracy_score(labels_numpy, pred_numpy,)
+
+    print('finetune: Acuracy = %.4f | Precision = %.4f | Recall = %.4f | F1 = %.4f' % (acc * 100, precision * 100, recall * 100, F1 * 100))
 
     # """Save embeddings for visualization"""
     # pickle.dump(features1_f, open('embeddings/fea_t_withLc.p', 'wb'))

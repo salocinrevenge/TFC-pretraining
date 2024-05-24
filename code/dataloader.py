@@ -79,31 +79,44 @@ def convert(dataset, ncanais = 6, original = False, tamanho = 60):
     return dataset
 
 def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True):
-    csv = False
+    csv_s = False
     if "UCI" in sourcedata_path or "KuHar" in sourcedata_path:
-        csv = True
-    original = False
+        csv_s = True
+    original_s = False
     if "original" in sourcedata_path:
-        original = True
-    if csv:
-        if original:
+        original_s = True
+    if csv_s:
+        if original_s:
             train_dataset = pd.read_csv(os.path.join(sourcedata_path, "train.csv"), header=None)
+
+            train_dataset = convert(train_dataset, configs.input_channels, True, configs.TSlength_aligned)
+        else:
+            train_dataset = pd.read_csv(os.path.join(sourcedata_path, "train.csv"))
+
+            train_dataset = convert(train_dataset)
+    else:
+        train_dataset = torch.load(os.path.join(sourcedata_path, "train.pt"))
+
+    csv_t = False
+    if "UCI" in targetdata_path or "KuHar" in targetdata_path:
+        csv_t = True
+    original_t = False
+    if "original" in targetdata_path:
+        original_t = True
+    if csv_t:
+        if original_t:
             finetune_dataset = pd.read_csv(os.path.join(targetdata_path, "train.csv"), header=None)
             test_dataset = pd.read_csv(os.path.join(targetdata_path, "test.csv"), header=None)
 
-            train_dataset = convert(train_dataset, configs.input_channels, True, configs.TSlength_aligned)
             finetune_dataset = convert(finetune_dataset, configs.input_channels, True, configs.TSlength_aligned)
             test_dataset = convert(test_dataset, configs.input_channels, True, configs.TSlength_aligned)
         else:
-            train_dataset = pd.read_csv(os.path.join(sourcedata_path, "train.csv"))
             finetune_dataset = pd.read_csv(os.path.join(targetdata_path, "train.csv"))
             test_dataset = pd.read_csv(os.path.join(targetdata_path, "test.csv"))
 
-            train_dataset = convert(train_dataset)
             finetune_dataset = convert(finetune_dataset)
             test_dataset = convert(test_dataset)
     else:
-        train_dataset = torch.load(os.path.join(sourcedata_path, "train.pt"))
         finetune_dataset = torch.load(os.path.join(targetdata_path, "train.pt"))
         test_dataset = torch.load(os.path.join(targetdata_path, "test.pt"))
     """ Dataset notes:

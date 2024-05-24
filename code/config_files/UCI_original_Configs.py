@@ -10,7 +10,7 @@ class Config(object):
         self.dropout = 0.35
 
         # training configs
-        self.num_epoch = 10
+        self.num_epoch = 40
 
         # optimizer parameters
         self.beta1 = 0.9

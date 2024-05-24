@@ -11,12 +11,12 @@ class Config(object):
         self.features_len = 18
 
         # training configs
-        self.num_epoch = 100# 40
+        self.num_epoch = 40# 40
 
         # optimizer parameters
         self.beta1 = 0.9
         self.beta2 = 0.99
-        self.lr =  3e-6 # 3e-4
+        self.lr =  3e-4 # 3e-4
 
         # data parameters
         self.drop_last = True
