@@ -71,7 +71,7 @@ class Load_Dataset(Dataset):
 def convert(dataset, ncanais = 6, original = False, tamanho = 60):
     if original:
         dataset = np.asarray(dataset)
-        dataset = {"samples": torch.tensor(dataset[:, :tamanho*ncanais],dtype=torch.float64), "labels": torch.tensor(dataset[:,1800],dtype=torch.int32)}
+        dataset = {"samples": torch.tensor(dataset[:, :tamanho*ncanais],dtype=torch.float64), "labels": torch.tensor(dataset[:,tamanho*ncanais],dtype=torch.int32)}
         dataset["samples"] = dataset["samples"].reshape(dataset["samples"].shape[0], ncanais, -1)
     else:
         dataset = {"samples": torch.tensor(dataset.iloc[:, :tamanho*ncanais].values,dtype=torch.float64), "labels": torch.tensor(dataset.iloc[:,-1].values,dtype=torch.int32)}
@@ -79,7 +79,9 @@ def convert(dataset, ncanais = 6, original = False, tamanho = 60):
     return dataset
 
 def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True):
-    csv = True
+    csv = False
+    if "UCI" in sourcedata_path or "KuHar" in sourcedata_path:
+        csv = True
     original = False
     if "original" in sourcedata_path:
         original = True

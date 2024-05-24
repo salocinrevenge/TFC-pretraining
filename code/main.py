@@ -123,7 +123,7 @@ temporal_contr_model = None #TC(configs, device).to(device)
 
 
 model_optimizer = torch.optim.Adam(TFC_model.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
-classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
+classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=3e-4, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
 temporal_contr_optimizer = None # torch.optim.Adam(temporal_contr_model.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
 
 #if training_mode == "pre_train":  # to do it only once

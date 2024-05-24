@@ -158,10 +158,10 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
 
         # """if random initialization:"""
         # model_optimizer.zero_grad()
-        # model_F_optimizer.zero_grad()
+        classifier_optimizer.zero_grad()
 
         """Produce embeddings"""
-        print(f"entrada do treino finetune: {labels}")
+        # print(f"entrada do treino finetune: {labels}")
         h_t, z_t, h_f, z_f=model(data, data_f)
 
         h_t_aug, z_t_aug, h_f_aug, z_f_aug=model(aug1, aug1_f)
@@ -187,6 +187,7 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
 
         lam = 0.2
         loss =  loss_p + (1-lam)*loss_c + lam*(loss_t + loss_f )
+        loss = loss_p
 
         acc_bs = labels.eq(predictions.detach().argmax(dim=1)).float().mean()
         onehot_label = F.one_hot(labels, num_classes=config.num_classes_target)
@@ -206,8 +207,29 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
         total_prc.append(prc_bs)
         total_loss.append(loss.item())
         loss.backward()
+        # print("##############################\n#PARAMETROS DO MODELO#\n##############################")
+        # contador = 0
+        # for param in model.parameters():
+        #     contador+=1
+        #     print(param.shape)
+        #     print(param)
+        #     if contador == 2:
+        #         break
+
+
         model_optimizer.step()
+
+        # for i in range(len(list(model.parameters()))):
+        #     print(torch.tensor(list(model.parameters())[i]).std())
+        # print(list(model.parameters())[1])
+
+        # print("##############################\n#PARAMETROS DO CLASSIFICADOR#\n##############################")
+        # for param in classifier.parameters():
+        #     print(param)
         classifier_optimizer.step()
+        # print(f"##############################\n#PARAMETROS DO DEPOIS#\n##############################")
+        # for param in classifier.parameters():
+        #     print(param)
 
         if training_mode != "pre_train":
             pred = predictions.max(1, keepdim=True)[1]  # get the index of the max log-probability
@@ -274,6 +296,7 @@ def model_test(model, temporal_contr_model, test_dl,config,  device, training_mo
             h_t, z_t, h_f, z_f = model(data, data_f)
 
             fea_concat = torch.cat((z_t, z_f), dim=1)
+            # print(f"data: {data}", f"data_f: {data_f}")
             predictions_test = classifier(fea_concat)  # how to define classifier? MLP? CNN?
             fea_concat_flat = fea_concat.reshape(fea_concat.shape[0], -1)
             emb_test_all.append(fea_concat_flat)
@@ -314,7 +337,7 @@ def model_test(model, temporal_contr_model, test_dl,config,  device, training_mo
     labels_numpy_all = labels_numpy_all[1:]
     pred_numpy_all = pred_numpy_all[1:]
 
-    print(f"{labels_numpy_all=} {pred_numpy_all=}")
+    # print(f"{labels_numpy_all=} {pred_numpy_all=}")
 
     # plot confusion matrix using sklearn
     cm = confusion_matrix(labels_numpy_all, pred_numpy_all)

@@ -31,22 +31,26 @@ class TFC(nn.Module): # Frequency domain encoder
         super(TFC, self).__init__()
 
         self.conv_block_t = nn.Sequential(
+            # print_layer(0),
             nn.Conv1d(configs.input_channels, 32, kernel_size=configs.kernel_size,
                       stride=configs.stride, bias=False, padding=(configs.kernel_size//2)),
             nn.BatchNorm1d(32),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
             nn.Dropout(configs.dropout),
+            # print_layer(1),
 
             nn.Conv1d(32, 64, kernel_size=8, stride=1, bias=False, padding=4),
             nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
+            # print_layer(2),
 
             nn.Conv1d(64, configs.final_out_channels, kernel_size=8, stride=1, bias=False, padding=4),
             nn.BatchNorm1d(configs.final_out_channels),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
+            # print_layer(3),
         )
 
         self.conv_block_f = nn.Sequential(
@@ -56,16 +60,19 @@ class TFC(nn.Module): # Frequency domain encoder
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
             nn.Dropout(configs.dropout),
+            # print_layer(1),
 
             nn.Conv1d(32, 64, kernel_size=8, stride=1, bias=False, padding=4),
             nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
+            # print_layer(2),
 
             nn.Conv1d(64, configs.final_out_channels, kernel_size=8, stride=1, bias=False, padding=4),
             nn.BatchNorm1d(configs.final_out_channels),
             nn.ReLU(),
             nn.MaxPool1d(kernel_size=2, stride=2, padding=1),
+            # print_layer(3),
         )
 
         self.projector_t = nn.Sequential(
@@ -101,6 +108,18 @@ class TFC(nn.Module): # Frequency domain encoder
         z_freq = self.projector_f(h_freq)
 
         return h_time, z_time, h_freq, z_freq
+    
+class print_layer(nn.Module):
+    def __init__(self, num):
+        super(print_layer, self).__init__()
+        self.num = num
+
+    def forward(self, emb):
+        print("Predicao apos camada", self.num)
+        print(f"shape de emb: {emb.shape}")
+        # print(f"dp: {emb.std(0).mean()}")
+        print(f"primeiros 5 elementos: {emb[0, 0, :5]}")
+        return emb
 
 class target_classifier(nn.Module): # Frequency domain encoder
     def __init__(self, configs):
@@ -111,6 +130,10 @@ class target_classifier(nn.Module): # Frequency domain encoder
     def forward(self, emb):
         # """2-layer MLP"""
         emb_flat = emb.reshape(emb.shape[0], -1)
+        # print("Predicao inicial!!!!")
+        # print(emb)
         emb = torch.sigmoid(self.logits(emb_flat))
         pred = self.logits_simple(emb)
+        # print("Predicao!!!!")
+        # print(pred)
         return pred
