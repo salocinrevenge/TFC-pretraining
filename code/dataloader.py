@@ -9,7 +9,7 @@ import pandas as pd
 
 class Load_Dataset(Dataset):
     # Initialize your data, download, etc.
-    def __init__(self, dataset, config, training_mode, target_dataset_size=64, subset=False):
+    def __init__(self, dataset, config, training_mode, target_dataset_size=64, subset=False, percent = 1.0):
         super(Load_Dataset, self).__init__()
         self.training_mode = training_mode
         X_train = dataset["samples"]
@@ -34,6 +34,10 @@ class Load_Dataset(Dataset):
             subset_size = target_dataset_size *10
             """if the dimension is larger than 178, take the first 178 dimensions. If multiple channels, take the first channel"""
             X_train = X_train[:subset_size] #
+            y_train = y_train[:subset_size]
+        if percent < 1.0:
+            subset_size = int(X_train.shape[0]*percent)
+            X_train = X_train[:subset_size]
             y_train = y_train[:subset_size]
 
         if isinstance(X_train, np.ndarray):
@@ -78,7 +82,7 @@ def convert(dataset, ncanais = 6, original = False, tamanho = 60):
         dataset["samples"] = dataset["samples"].reshape(dataset["samples"].shape[0], ncanais, -1)
     return dataset
 
-def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True):
+def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True, percent = 1.0):
     csv_s = False
     if "UCI" in sourcedata_path or "KuHar" in sourcedata_path:
         csv_s = True
@@ -105,12 +109,14 @@ def data_generator(sourcedata_path, targetdata_path, configs, training_mode, sub
         original_t = True
     if csv_t:
         if original_t:
+            print(f"usando dataset original e csv: {targetdata_path}")
             finetune_dataset = pd.read_csv(os.path.join(targetdata_path, "train.csv"), header=None)
             test_dataset = pd.read_csv(os.path.join(targetdata_path, "test.csv"), header=None)
 
             finetune_dataset = convert(finetune_dataset, configs.input_channels, True, configs.TSlength_aligned)
             test_dataset = convert(test_dataset, configs.input_channels, True, configs.TSlength_aligned)
         else:
+            print(f"usando dataset modificado e csv: {targetdata_path}")
             finetune_dataset = pd.read_csv(os.path.join(targetdata_path, "train.csv"))
             test_dataset = pd.read_csv(os.path.join(targetdata_path, "test.csv"))
 
@@ -126,12 +132,12 @@ def data_generator(sourcedata_path, targetdata_path, configs, training_mode, sub
     """sleepEDF: finetune_dataset['samples']: [7786, 1, 3000]"""
 
     # subset = True # if true, use a subset for debugging.
-    train_dataset = Load_Dataset(train_dataset, configs, training_mode, target_dataset_size=configs.batch_size, subset=subset) # for self-supervised, the data are augmented here
-    finetune_dataset = Load_Dataset(finetune_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset)
+    train_dataset = Load_Dataset(train_dataset, configs, training_mode, target_dataset_size=configs.batch_size, subset=subset, percent=percent) # for self-supervised, the data are augmented here
+    finetune_dataset = Load_Dataset(finetune_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=percent)
     if test_dataset['labels'].shape[0]>10*configs.target_batch_size:
-        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size*10, subset=subset)
+        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size*10, subset=subset, percent=percent)
     else:
-        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset)
+        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=percent)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=configs.batch_size,
                                                shuffle=True, drop_last=configs.drop_last,

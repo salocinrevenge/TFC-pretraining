@@ -39,6 +39,8 @@ parser.add_argument('--logs_save_dir', default='experiments_logs', type=str,
                     help='saving directory')
 parser.add_argument('--device', default='cuda', type=str,
                     help='cpu or cuda')
+parser.add_argument('--percent', default=1.0, type=float,
+                    help='percent of data used in training')
 parser.add_argument('--home_path', default=home_dir, type=str,
                     help='Project home directory')
 # args = parser.parse_args()
@@ -96,7 +98,7 @@ sourcedata_path = f"../datasets/{sourcedata}"  # './data/Epilepsy'
 targetdata_path = f"../datasets/{targetdata}"
 # for self-supervised, the data are augmented here. Only self-supervised learning need augmentation
 subset = False # if subset= true, use a subset for debugging.
-train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = subset)
+train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = subset, percent=args.percent)
 logger.debug("Data loaded ...")
 
 # Load Model

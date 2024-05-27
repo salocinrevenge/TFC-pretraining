@@ -10,9 +10,12 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import confusion_matrix
 
 class SimpleDataset:
-    def __init__(self, X, y):
+    def __init__(self, X, y, percentage = 1.0):
         self.X = X
         self.y = y
+        if percentage < 1.0:
+            self.X = self.X[:int(len(self.X)*percentage)]
+            self.y = self.y[:int(len(self.y)*percentage)]
         
     def __len__(self):
         return len(self.X)
@@ -222,7 +225,7 @@ class CNN_HaEtAl_1D(SimpleClassificationNet):
             # torch.nn.Softmax(dim=1),
         )
 
-csv = False
+csv = True
 
 if csv:
     train = pd.read_csv('../../../datasets/UCI_original/train.csv', header=None)
@@ -243,11 +246,13 @@ else:
     X_test = test["samples"]
     y_test = test["labels"]
 
-
-
-X_train = X_train.reshape(-1, 1, 3, 206).astype(np.float32)
-X_validation = X_validation.reshape(-1, 1, 3, 206).astype(np.float32)
-X_test = X_test.reshape(-1, 1, 3, 206).astype(np.float32)
+if csv:
+    formato = (-1, 1, 9, 128)
+else:
+    formato = (-1, 1, 3, 206)
+X_train = X_train.reshape(*formato).astype(np.float32)
+X_validation = X_validation.reshape(*formato).astype(np.float32)
+X_test = X_test.reshape(*formato).astype(np.float32)
 
 y_train = y_train.astype(int)
 y_validation = y_validation.astype(int)
@@ -257,9 +262,9 @@ y_test = y_test.astype(int)
 
 
 if csv:
-    train = SimpleDataset(X_train, y_train)
-    validation = SimpleDataset(X_validation, y_validation)
-    test = SimpleDataset(X_test, y_test)
+    train = SimpleDataset(X_train, y_train, percentage=0.003)
+    validation = SimpleDataset(X_validation, y_validation, percentage=0.003)
+    test = SimpleDataset(X_test, y_test, percentage=1.0)
 
     dm = SimpleDataModule(train, validation, test, batch_size=32)
 else:

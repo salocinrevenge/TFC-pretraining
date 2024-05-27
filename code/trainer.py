@@ -202,8 +202,15 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
         pred_numpy_removed_classes = np.delete(pred_numpy, no_examples_classes, axis=1)
         onehot_label_removed_classes = np.delete(onehot_label.cpu(), no_examples_classes, axis=1)
 
-        auc_bs = roc_auc_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes, average="macro", multi_class="ovr" )
-        prc_bs = average_precision_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes)
+        try:
+            auc_bs = roc_auc_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes, average="macro", multi_class="ovr" )
+        except:
+            auc_bs = 0.0
+        try:
+            prc_bs = average_precision_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes)
+        except:
+            prc_bs = 0.0
+
 
         total_acc.append(acc_bs)
         total_auc.append(auc_bs)
@@ -298,10 +305,11 @@ def model_test(model, temporal_contr_model, test_dl,config,  device, training_mo
                 # remove as colunas de indice em no_examples_classes
                 pred_numpy_removed_classes = np.delete(pred_numpy, no_examples_classes, axis=1)
                 onehot_label_removed_classes = np.delete(onehot_label.cpu(), no_examples_classes, axis=1)
-
                 auc_bs = roc_auc_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes,
                                        average="macro", multi_class="ovr")
+
                 prc_bs = average_precision_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes, average="macro")
+
 
                 pred_numpy = np.argmax(pred_numpy, axis=1)
                 # precision = precision_score(labels_numpy, pred_numpy, average='macro', )  # labels=np.unique(ypred))
