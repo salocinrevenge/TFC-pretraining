@@ -1,0 +1,1 @@
+O modelo desenvolvido aqui é baseado na própria implementação do TFC em uma versão mais antiga, utilizando porém o pytorchlightning como forma de minimizar o trabalho no loop de treino
