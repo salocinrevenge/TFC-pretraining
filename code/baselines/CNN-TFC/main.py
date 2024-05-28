@@ -298,8 +298,8 @@ y_test = y_test.astype(int)
 
 
 if csv:
-    train = SimpleDataset(X_train, y_train, percentage=1.0)
-    validation = SimpleDataset(X_validation, y_validation, percentage=1.0)
+    train = SimpleDataset(X_train, y_train, percentage=0.01)
+    validation = SimpleDataset(X_validation, y_validation, percentage=0.01)
     test = SimpleDataset(X_test, y_test, percentage=1.0)
 
     dm = SimpleDataModule(train, validation, test, batch_size=32)
@@ -321,7 +321,7 @@ model = CNN_TFC(input_shape=(1, 9, 128), num_classes=6)
 
 
 
-trainer = L.Trainer(max_epochs=40, accelerator="gpu", devices=1)
+trainer = L.Trainer(max_epochs=4000, accelerator="gpu", devices=1)
 trainer.fit(model, dm)
 
 
@@ -344,12 +344,12 @@ print(y_test.shape, y_hat_maxed.shape)
 
 accuracy_metric = torchmetrics.Accuracy(task="multiclass", num_classes=6)
 accuracy_score = accuracy_metric(y_hat_maxed, torch.tensor(y_test))
-print(accuracy_score.item())
+print(accuracy_score.item()*100)
 
 auroc_metric = torchmetrics.AUROC(task="multiclass", num_classes=6)
 auroc = auroc_metric(y_hat, torch.tensor(y_test))
-print("auroc: ", auroc.item())
+print("auroc: ", auroc.item()*100)
 
 auprc_metric = torchmetrics.AveragePrecision(task="multiclass", num_classes=6)
 auprc = auprc_metric(y_hat, torch.tensor(y_test))
-print("auprc", auprc.item())
+print("auprc", auprc.item()*100)
