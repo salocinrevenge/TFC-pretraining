@@ -23,8 +23,8 @@ def one_hot_encoding(X):
     return b
 
 def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, train_dl, valid_dl, test_dl, device,
-            logger, config, experiment_log_dir, training_mode, model_F=None, model_F_optimizer=None,
-            classifier=None, classifier_optimizer=None):
+            logger, config, configs_target, experiment_log_dir, training_mode, model_F=None, model_F_optimizer=None,
+            classifier=None, classifier_optimizer=None, epochs=40):
     # Start training
     logger.debug("Training started ....")
 
@@ -33,7 +33,7 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
     """Pretraining"""
     if training_mode == 'pre_train':
         print('Pretraining on source dataset')
-        for epoch in range(1, config.num_epoch + 1):
+        for epoch in range(1, epochs + 1):
             # Train and validate
             """Train. In fine-tuning, this part is also trained???"""
             train_loss, train_acc, train_auc = model_pretrain(model, temporal_contr_model, model_optimizer, temp_cont_optimizer, criterion,
@@ -55,8 +55,8 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
         """fine-tune"""
         print('Fine-tune  on Fine-tuning set')
         performance_list = []
-        for epoch in range(1, config.num_epoch + 1):
-            valid_loss, valid_acc, valid_auc, valid_prc, emb_finetune, label_finetune, F1 = model_finetune(model, temporal_contr_model, valid_dl, config, device, training_mode,
+        for epoch in range(1, epochs + 1):
+            valid_loss, valid_acc, valid_auc, valid_prc, emb_finetune, label_finetune, F1 = model_finetune(model, temporal_contr_model, valid_dl, config, configs_target, device, training_mode,
                                                    model_optimizer, model_F=model_F, model_F_optimizer=model_F_optimizer,
                                                         classifier=classifier, classifier_optimizer=classifier_optimizer)
 
@@ -70,8 +70,8 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
 
             # evaluate on the test set
             """Testing set"""
-            logger.debug('\nTest on Target datasts test set')
-            test_loss, test_acc, test_auc, test_prc, emb_test, label_test, performance = model_test(model, temporal_contr_model, test_dl, config, device, training_mode,
+            logger.debug('\nTest on Target dataset test set')
+            test_loss, test_acc, test_auc, test_prc, emb_test, label_test, performance = model_test(model, temporal_contr_model, test_dl, configs_target, device, training_mode,
                                                                 model_F=model_F, model_F_optimizer=model_F_optimizer,
                                                              classifier=classifier, classifier_optimizer=classifier_optimizer, logger = logger)
 
@@ -138,7 +138,7 @@ def model_pretrain(model, temporal_contr_model, model_optimizer, temp_cont_optim
     return total_loss, total_acc, total_auc
 
 
-def model_finetune(model, temporal_contr_model, val_dl, config, device, training_mode, model_optimizer, model_F=None, model_F_optimizer=None,
+def model_finetune(model, temporal_contr_model, val_dl, config, configs_target, device, training_mode, model_optimizer, model_F=None, model_F_optimizer=None,
                    classifier=None, classifier_optimizer=None):
     model.train()
     classifier.train()
@@ -152,9 +152,10 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
     outs = np.array([])
     trgs = np.array([])
 
-    for data, labels, aug1, data_f, aug1_f in tqdm(val_dl):
+    print(f"format of finetune dataset: {len(val_dl)} batches of size {val_dl.batch_size}, resulting in {val_dl.batch_size*len(val_dl)} samples")
+    for data, labels_original, aug1, data_f, aug1_f in tqdm(val_dl):
         # print('Fine-tuning: {} of target samples'.format(labels.shape[0]))
-        data, labels = data.float().to(device), labels.long().to(device)
+        data, labels = data.float().to(device), labels_original.long().to(device)
         data_f = data_f.float().to(device)
         aug1 = aug1.float().to(device)
         aug1_f = aug1_f.float().to(device)
@@ -193,7 +194,7 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
         loss = loss_p
 
         acc_bs = labels.eq(predictions.detach().argmax(dim=1)).float().mean()
-        onehot_label = F.one_hot(labels, num_classes=config.num_classes_target)
+        onehot_label = F.one_hot(labels, num_classes=configs_target.num_classes_target)
         pred_numpy = predictions.detach().cpu().numpy()
 
         #verifica qual classe de labels nao possui exemplos
@@ -204,12 +205,13 @@ def model_finetune(model, temporal_contr_model, val_dl, config, device, training
 
         try:
             auc_bs = roc_auc_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes, average="macro", multi_class="ovr" )
-        except:
-            auc_bs = 0.0
-        try:
-            prc_bs = average_precision_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes)
-        except:
-            prc_bs = 0.0
+        except Exception as e:
+            print(f"{labels_original=}")
+            print(f"{pred_numpy=}")
+            raise e
+        prc_bs = average_precision_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes)
+
+
 
 
         total_acc.append(acc_bs)
@@ -263,7 +265,7 @@ def plot_confusion_matrix(cm, normalize=False):
     print(cm)
 
 
-def model_test(model, temporal_contr_model, test_dl,config,  device, training_mode, model_F=None, model_F_optimizer=None,
+def model_test(model, temporal_contr_model, test_dl, config,  device, training_mode, model_F=None, model_F_optimizer=None,
                classifier=None, classifier_optimizer=None, logger = None):
     model.eval()
     classifier.eval()
@@ -301,12 +303,18 @@ def model_test(model, temporal_contr_model, test_dl,config,  device, training_mo
                 onehot_label = F.one_hot(labels, num_classes=config.num_classes_target)
                 pred_numpy = predictions_test.detach().cpu().numpy()
                 labels_numpy = labels.detach().cpu().numpy()
+                
                 no_examples_classes = [i for i in range(config.num_classes_target) if i not in labels]
                 # remove as colunas de indice em no_examples_classes
                 pred_numpy_removed_classes = np.delete(pred_numpy, no_examples_classes, axis=1)
                 onehot_label_removed_classes = np.delete(onehot_label.cpu(), no_examples_classes, axis=1)
-                auc_bs = roc_auc_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes,
+                try:
+                    auc_bs = roc_auc_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes,
                                        average="macro", multi_class="ovr")
+                except Exception as e:
+                    print(f"{onehot_label=}")
+                    print(f"{pred_numpy=}")
+                    raise e
 
                 prc_bs = average_precision_score(onehot_label_removed_classes.detach().cpu().numpy(), pred_numpy_removed_classes, average="macro")
 

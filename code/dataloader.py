@@ -82,7 +82,7 @@ def convert(dataset, ncanais = 6, original = False, tamanho = 60):
         dataset["samples"] = dataset["samples"].reshape(dataset["samples"].shape[0], ncanais, -1)
     return dataset
 
-def data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = True, percent = 1.0):
+def data_generator(sourcedata_path, targetdata_path, configs, configs_target, training_mode, subset = True, percent = 1.0):
     csv_s = False
     if "UCI" in sourcedata_path or "KuHar" in sourcedata_path:
         csv_s = True
@@ -109,14 +109,12 @@ def data_generator(sourcedata_path, targetdata_path, configs, training_mode, sub
         original_t = True
     if csv_t:
         if original_t:
-            print(f"usando dataset original e csv: {targetdata_path}")
             finetune_dataset = pd.read_csv(os.path.join(targetdata_path, "train.csv"), header=None)
             test_dataset = pd.read_csv(os.path.join(targetdata_path, "test.csv"), header=None)
 
-            finetune_dataset = convert(finetune_dataset, configs.input_channels, True, configs.TSlength_aligned)
-            test_dataset = convert(test_dataset, configs.input_channels, True, configs.TSlength_aligned)
+            finetune_dataset = convert(finetune_dataset, configs_target.input_channels, True, configs_target.TSlength_aligned)
+            test_dataset = convert(test_dataset, configs_target.input_channels, True, configs_target.TSlength_aligned)
         else:
-            print(f"usando dataset modificado e csv: {targetdata_path}")
             finetune_dataset = pd.read_csv(os.path.join(targetdata_path, "train.csv"))
             test_dataset = pd.read_csv(os.path.join(targetdata_path, "test.csv"))
 
@@ -133,11 +131,11 @@ def data_generator(sourcedata_path, targetdata_path, configs, training_mode, sub
 
     # subset = True # if true, use a subset for debugging.
     train_dataset = Load_Dataset(train_dataset, configs, training_mode, target_dataset_size=configs.batch_size, subset=subset, percent=percent) # for self-supervised, the data are augmented here
-    finetune_dataset = Load_Dataset(finetune_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=percent)
+    finetune_dataset = Load_Dataset(finetune_dataset, configs_target, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=percent)
     if test_dataset['labels'].shape[0]>10*configs.target_batch_size:
-        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size*10, subset=subset, percent=percent)
+        test_dataset = Load_Dataset(test_dataset, configs_target, training_mode, target_dataset_size=configs.target_batch_size*10, subset=subset, percent=percent)
     else:
-        test_dataset = Load_Dataset(test_dataset, configs, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=percent)
+        test_dataset = Load_Dataset(test_dataset, configs_target, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=percent)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=configs.batch_size,
                                                shuffle=True, drop_last=configs.drop_last,

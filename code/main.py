@@ -41,6 +41,10 @@ parser.add_argument('--device', default='cuda', type=str,
                     help='cpu or cuda')
 parser.add_argument('--percent', default=1.0, type=float,
                     help='percent of data used in training')
+
+parser.add_argument('--epochs', default=40, type=int,
+                    help='number of epochs in training')
+
 parser.add_argument('--home_path', default=home_dir, type=str,
                     help='Project home directory')
 # args = parser.parse_args()
@@ -63,7 +67,9 @@ os.makedirs(logs_save_dir, exist_ok=True)
 
 
 exec(f'from config_files.{sourcedata}_Configs import Config as Configs')
+exec(f'from config_files.{targetdata}_Configs import Config as Configs_target')
 configs = Configs() # THis is OK???
+configs_target = Configs_target() # THis is OK???
 
 # # ##### fix random seeds for reproducibility ########
 SEED = args.seed
@@ -98,7 +104,7 @@ sourcedata_path = f"../datasets/{sourcedata}"  # './data/Epilepsy'
 targetdata_path = f"../datasets/{targetdata}"
 # for self-supervised, the data are augmented here. Only self-supervised learning need augmentation
 subset = False # if subset= true, use a subset for debugging.
-train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, training_mode, subset = subset, percent=args.percent)
+train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, configs_target, training_mode, subset = subset, percent=args.percent)
 logger.debug("Data loaded ...")
 
 # Load Model
@@ -106,7 +112,7 @@ logger.debug("Data loaded ...")
 # model = Time_Model(configs).to(device)
 # model_F = Frequency_Model(configs).to(device) #base_Model_F(configs).to(device) """here is right. No bug in this line.
 TFC_model = TFC(configs).to(device)
-classifier = target_classifier(configs).to(device)
+classifier = target_classifier(configs_target).to(device)
 
 temporal_contr_model = None #TC(configs, device).to(device)
 
@@ -125,7 +131,7 @@ temporal_contr_model = None #TC(configs, device).to(device)
 
 
 model_optimizer = torch.optim.Adam(TFC_model.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
-classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=3e-4, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
+classifier_optimizer = torch.optim.Adam(classifier.parameters(), lr=3e-4, betas=(configs_target.beta1, configs_target.beta2), weight_decay=3e-4)
 temporal_contr_optimizer = None # torch.optim.Adam(temporal_contr_model.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
 
 #if training_mode == "pre_train":  # to do it only once
@@ -133,7 +139,7 @@ temporal_contr_optimizer = None # torch.optim.Adam(temporal_contr_model.paramete
 
 # Trainer
 Trainer(TFC_model,  temporal_contr_model, model_optimizer, temporal_contr_optimizer, train_dl, valid_dl, test_dl, device,
-        logger, configs, experiment_log_dir, training_mode, model_F=None, model_F_optimizer = None,
-        classifier=classifier, classifier_optimizer=classifier_optimizer)
+        logger, configs, configs_target, experiment_log_dir, training_mode, model_F=None, model_F_optimizer = None,
+        classifier=classifier, classifier_optimizer=classifier_optimizer, epochs=args.epochs)
 
 logger.debug(f"Training time is : {datetime.now()-start_time}")

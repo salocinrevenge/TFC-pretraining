@@ -9,9 +9,6 @@ class Config(object):
         self.num_classes = 6
         self.dropout = 0.35
 
-        # training configs
-        self.num_epoch = 40
-
         # optimizer parameters
         self.beta1 = 0.9
         self.beta2 = 0.99
@@ -28,7 +25,7 @@ class Config(object):
         """New hyperparameters"""
         self.TSlength_aligned = 128
         self.lr_f = self.lr
-        self.target_batch_size = 42#  84
+        self.target_batch_size = 42#  42
         self.increased_dim = 1
         self.final_out_channels = 128
         self.num_classes_target = 6
