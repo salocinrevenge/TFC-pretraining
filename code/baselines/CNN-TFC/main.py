@@ -10,6 +10,12 @@ from torch.utils.data import DataLoader
 from sklearn.metrics import confusion_matrix
 from torch import nn
 
+#setar seed para reprodução
+seed = 42
+torch.manual_seed(seed)
+np.random.seed(seed)
+
+
 class SimpleDataset:
     def __init__(self, X, y, percentage = 1.0):
         self.X = X
@@ -26,24 +32,25 @@ class SimpleDataset:
     
     
 class SimpleDataModule(L.LightningDataModule):
-    def __init__(self, train_dset, val_dset, test_dset, batch_size=32):
+    def __init__(self, train_dset, val_dset, test_dset, batch_size=32, drop_last = False):
         super().__init__()
         self.train_dset = train_dset
         self.val_dset = val_dset
         self.test_dset = test_dset
         self.batch_size = batch_size
+        self.drop_last = drop_last
         
     def train_dataloader(self):
-        return DataLoader(self.train_dset, batch_size=self.batch_size, shuffle=True)
+        return DataLoader(self.train_dset, batch_size=self.batch_size, shuffle=True, drop_last=self.drop_last)
     
     def val_dataloader(self):
-        return DataLoader(self.val_dset, batch_size=self.batch_size)
+        return DataLoader(self.val_dset, batch_size=self.batch_size, drop_last=self.drop_last)
     
     def test_dataloader(self):
-        return DataLoader(self.test_dset, batch_size=self.batch_size)
+        return DataLoader(self.test_dset, batch_size=self.batch_size, drop_last=False)
     
     def predict_dataloader(self):
-        return DataLoader(self.test_dset, batch_size=self.batch_size)
+        return DataLoader(self.test_dset, batch_size=self.batch_size, drop_last=False)
     
 
 class SimpleClassificationNet(L.LightningModule):
@@ -290,6 +297,14 @@ X_train = X_train.reshape(*formato).astype(np.float32)
 X_validation = X_validation.reshape(*formato).astype(np.float32)
 X_test = X_test.reshape(*formato).astype(np.float32)
 
+
+fft_bool = True
+if fft_bool:
+
+    X_train = np.abs(np.fft.fft(X_train)).astype(np.float32)
+    X_validation = np.abs(np.fft.fft(X_validation)).astype(np.float32)
+    X_test = np.abs(np.fft.fft(X_test)).astype(np.float32)
+
 y_train = y_train.astype(int)
 y_validation = y_validation.astype(int)
 y_test = y_test.astype(int)
@@ -297,17 +312,29 @@ y_test = y_test.astype(int)
 
 
 
+percentage = 0.01
+batch_size = 42
+epocas = int(40/percentage)
+epocas = 100
+
+print(f"epocas: {epocas}")
+
+
+
+
+
 if csv:
-    train = SimpleDataset(X_train, y_train, percentage=0.01)
-    validation = SimpleDataset(X_validation, y_validation, percentage=0.01)
+    train = SimpleDataset(X_train, y_train, percentage=percentage)
+    validation = SimpleDataset(X_validation, y_validation, percentage=percentage)
     test = SimpleDataset(X_test, y_test, percentage=1.0)
 
-    dm = SimpleDataModule(train, validation, test, batch_size=32)
+    dm = SimpleDataModule(train, validation, test, batch_size=batch_size, drop_last=True)
 else:
     
-    dm = SimpleDataModule(train, validation, test, batch_size=32)
+    dm = SimpleDataModule(train, validation, test, batch_size=batch_size, drop_last=True)
 
-
+n_amostras = (len(train)//batch_size)*batch_size
+print(f"o treinamento contem {n_amostras} amostras")
 
 
 
@@ -321,7 +348,7 @@ model = CNN_TFC(input_shape=(1, 9, 128), num_classes=6)
 
 
 
-trainer = L.Trainer(max_epochs=4000, accelerator="gpu", devices=1)
+trainer = L.Trainer(max_epochs=epocas, accelerator="gpu", devices=1)
 trainer.fit(model, dm)
 
 

@@ -24,7 +24,7 @@ def one_hot_encoding(X):
 
 def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, train_dl, valid_dl, test_dl, device,
             logger, config, configs_target, experiment_log_dir, training_mode, model_F=None, model_F_optimizer=None,
-            classifier=None, classifier_optimizer=None, epochs=40):
+            classifier=None, classifier_optimizer=None, epochs=40, pipes = None):
     # Start training
     logger.debug("Training started ....")
 
@@ -37,7 +37,7 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
             # Train and validate
             """Train. In fine-tuning, this part is also trained???"""
             train_loss, train_acc, train_auc = model_pretrain(model, temporal_contr_model, model_optimizer, temp_cont_optimizer, criterion,
-                                                              train_dl, config, device, training_mode, model_F=model_F, model_F_optimizer=model_F_optimizer)
+                                                              train_dl, config, device, training_mode, model_F=model_F, model_F_optimizer=model_F_optimizer, pipes=pipes)
 
             if training_mode != 'self_supervised':  # use scheduler in all other modes.
                 scheduler.step(train_loss)
@@ -58,7 +58,7 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
         for epoch in range(1, epochs + 1):
             valid_loss, valid_acc, valid_auc, valid_prc, emb_finetune, label_finetune, F1 = model_finetune(model, temporal_contr_model, valid_dl, config, configs_target, device, training_mode,
                                                    model_optimizer, model_F=model_F, model_F_optimizer=model_F_optimizer,
-                                                        classifier=classifier, classifier_optimizer=classifier_optimizer)
+                                                        classifier=classifier, classifier_optimizer=classifier_optimizer, pipes=pipes)
 
             if training_mode != 'pre_train':  # use scheduler in all other modes.
                 scheduler.step(valid_loss)
@@ -71,22 +71,31 @@ def Trainer(model,  temporal_contr_model, model_optimizer, temp_cont_optimizer, 
             # evaluate on the test set
             """Testing set"""
             logger.debug('\nTest on Target dataset test set')
-            test_loss, test_acc, test_auc, test_prc, emb_test, label_test, performance = model_test(model, temporal_contr_model, test_dl, configs_target, device, training_mode,
+            try:
+                test_loss, test_acc, test_auc, test_prc, emb_test, label_test, performance = model_test(model, temporal_contr_model, test_dl, configs_target, device, training_mode,
                                                                 model_F=model_F, model_F_optimizer=model_F_optimizer,
-                                                             classifier=classifier, classifier_optimizer=classifier_optimizer, logger = logger)
+                                                             classifier=classifier, classifier_optimizer=classifier_optimizer, logger = logger, pipes=pipes)
+            except Exception as e:
+                print(f"error in test: {e}")
+            
 
             performance_list.append(performance)
         performance_array = np.array(performance_list)
         best_performance = performance_array[np.argmax(performance_array[:,0], axis=0)]
         print('Best Testing: Acc=%.4f| Precision = %.4f | Recall = %.4f | F1 = %.4f | AUROC= %.4f | PRC=%.4f'
               % (best_performance[0], best_performance[1], best_performance[2], best_performance[3], best_performance[4], best_performance[5]))
+        
+        os.makedirs(os.path.join(experiment_log_dir, "saved_models"), exist_ok=True) # only save in self_supervised mode.
+        chkpoint = {'model_state_dict': model.state_dict(),}
+        torch.save(chkpoint, os.path.join(experiment_log_dir, "saved_models", f'ckp_last.pt'))
+        print('Finetuned model is stored at folder:{}'.format(experiment_log_dir+'saved_models'+'ckp_last.pt'))
 
     logger.debug("\n################## Training is Done! #########################")
 
 
 
 def model_pretrain(model, temporal_contr_model, model_optimizer, temp_cont_optimizer, criterion, train_loader, config,
-                   device, training_mode, model_F=None, model_F_optimizer=None):
+                   device, training_mode, model_F=None, model_F_optimizer=None, pipes=None):
     total_loss = []
     total_acc = []
     total_auc = []
@@ -139,7 +148,7 @@ def model_pretrain(model, temporal_contr_model, model_optimizer, temp_cont_optim
 
 
 def model_finetune(model, temporal_contr_model, val_dl, config, configs_target, device, training_mode, model_optimizer, model_F=None, model_F_optimizer=None,
-                   classifier=None, classifier_optimizer=None):
+                   classifier=None, classifier_optimizer=None, pipes=None):
     model.train()
     classifier.train()
 
@@ -153,15 +162,15 @@ def model_finetune(model, temporal_contr_model, val_dl, config, configs_target, 
     trgs = np.array([])
 
     print(f"format of finetune dataset: {len(val_dl)} batches of size {val_dl.batch_size}, resulting in {val_dl.batch_size*len(val_dl)} samples")
-    for data, labels_original, aug1, data_f, aug1_f in tqdm(val_dl):
+    for data, labels, aug1, data_f, aug1_f in tqdm(val_dl):
         # print('Fine-tuning: {} of target samples'.format(labels.shape[0]))
-        data, labels = data.float().to(device), labels_original.long().to(device)
+        data, labels = data.float().to(device), labels.long().to(device)
         data_f = data_f.float().to(device)
         aug1 = aug1.float().to(device)
         aug1_f = aug1_f.float().to(device)
 
         # """if random initialization:"""
-        # model_optimizer.zero_grad()
+        model_optimizer.zero_grad()
         classifier_optimizer.zero_grad()
 
         """Produce embeddings"""
@@ -182,7 +191,12 @@ def model_finetune(model, temporal_contr_model, val_dl, config, configs_target, 
 
 
         """Add supervised classifier: 1) it's unique to finetuning. 2) this classifier will also be used in test"""
-        fea_concat = torch.cat((z_t, z_f), dim=1)
+        if pipes == "frequency":
+            fea_concat = z_f
+        elif pipes == "time":
+            fea_concat = z_t
+        else:
+            fea_concat = torch.cat((z_t, z_f), dim=1)
         predictions = classifier(fea_concat) # how to define classifier? MLP? CNN?
         fea_concat_flat = fea_concat.reshape(fea_concat.shape[0], -1)
         loss_p = criterion(predictions, labels) # predictor loss, actually, here is training loss
@@ -266,7 +280,7 @@ def plot_confusion_matrix(cm, normalize=False):
 
 
 def model_test(model, temporal_contr_model, test_dl, config,  device, training_mode, model_F=None, model_F_optimizer=None,
-               classifier=None, classifier_optimizer=None, logger = None):
+               classifier=None, classifier_optimizer=None, logger = None, pipes=None):
     model.eval()
     classifier.eval()
 
@@ -293,6 +307,12 @@ def model_test(model, temporal_contr_model, test_dl, config,  device, training_m
 
             fea_concat = torch.cat((z_t, z_f), dim=1)
             # print(f"data: {data}", f"data_f: {data_f}")
+            if pipes == "frequency":
+                fea_concat = z_f
+            elif pipes == "time":
+                fea_concat = z_t
+            else:
+                fea_concat = torch.cat((z_t, z_f), dim=1)
             predictions_test = classifier(fea_concat)  # how to define classifier? MLP? CNN?
             fea_concat_flat = fea_concat.reshape(fea_concat.shape[0], -1)
             emb_test_all.append(fea_concat_flat)
@@ -344,7 +364,7 @@ def model_test(model, temporal_contr_model, test_dl, config,  device, training_m
 
     # plot confusion matrix using sklearn
     cm = confusion_matrix(labels_numpy_all, pred_numpy_all)
-    plot_confusion_matrix(cm)
+    # plot_confusion_matrix(cm)
 
 
     # print('Test classification report', classification_report(labels_numpy_all, pred_numpy_all))

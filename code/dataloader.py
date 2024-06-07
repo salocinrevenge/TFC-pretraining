@@ -132,10 +132,11 @@ def data_generator(sourcedata_path, targetdata_path, configs, configs_target, tr
     # subset = True # if true, use a subset for debugging.
     train_dataset = Load_Dataset(train_dataset, configs, training_mode, target_dataset_size=configs.batch_size, subset=subset, percent=percent) # for self-supervised, the data are augmented here
     finetune_dataset = Load_Dataset(finetune_dataset, configs_target, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=percent)
-    if test_dataset['labels'].shape[0]>10*configs.target_batch_size:
-        test_dataset = Load_Dataset(test_dataset, configs_target, training_mode, target_dataset_size=configs.target_batch_size*10, subset=subset, percent=percent)
-    else:
-        test_dataset = Load_Dataset(test_dataset, configs_target, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=percent)
+    # if test_dataset['labels'].shape[0]>10*configs.target_batch_size:
+    #     test_dataset = Load_Dataset(test_dataset, configs_target, training_mode, target_dataset_size=configs.target_batch_size*10, subset=subset, percent=1.0)
+    # else:
+    #     test_dataset = Load_Dataset(test_dataset, configs_target, training_mode, target_dataset_size=configs.target_batch_size, subset=subset, percent=1.0)
+    test_dataset = Load_Dataset(test_dataset, configs_target, training_mode, target_dataset_size=len(test_dataset), subset=False, percent=1.0)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=configs.batch_size,
                                                shuffle=True, drop_last=configs.drop_last,

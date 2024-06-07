@@ -122,9 +122,11 @@ class print_layer(nn.Module):
         return emb
 
 class target_classifier(nn.Module): # Frequency domain encoder
-    def __init__(self, configs):
+    def __init__(self, configs, conexoes=2):
+        if conexoes != 2:
+            print(f"Apenas um ramo sera utilizado: {conexoes}")
         super(target_classifier, self).__init__()
-        self.logits = nn.Linear(2*128, 64)
+        self.logits = nn.Linear(conexoes*128, 64)
         self.logits_simple = nn.Linear(64, configs.num_classes_target)
 
     def forward(self, emb):

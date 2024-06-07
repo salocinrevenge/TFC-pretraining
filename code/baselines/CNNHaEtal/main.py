@@ -259,17 +259,15 @@ y_validation = y_validation.astype(int)
 y_test = y_test.astype(int)
 
 
-
-
 if csv:
     train = SimpleDataset(X_train, y_train, percentage=0.003)
     validation = SimpleDataset(X_validation, y_validation, percentage=0.003)
     test = SimpleDataset(X_test, y_test, percentage=1.0)
 
-    dm = SimpleDataModule(train, validation, test, batch_size=32)
+    dm = SimpleDataModule(train, validation, test, batch_size=batch_size, drop_last=True)
 else:
     
-    dm = SimpleDataModule(train, validation, test, batch_size=32)
+    dm = SimpleDataModule(train, validation, test, batch_size=batch_size, drop_last=True)
 
 
 

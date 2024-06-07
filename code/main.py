@@ -45,6 +45,11 @@ parser.add_argument('--percent', default=1.0, type=float,
 parser.add_argument('--epochs', default=40, type=int,
                     help='number of epochs in training')
 
+parser.add_argument('--batch', default=None, type=int,
+                    help='number of batchs in training')
+parser.add_argument('--single_pipe', default=None, type=str,
+                    help='what pipeline the model should use. time or frequency or None for both')
+
 parser.add_argument('--home_path', default=home_dir, type=str,
                     help='Project home directory')
 # args = parser.parse_args()
@@ -70,6 +75,10 @@ exec(f'from config_files.{sourcedata}_Configs import Config as Configs')
 exec(f'from config_files.{targetdata}_Configs import Config as Configs_target')
 configs = Configs() # THis is OK???
 configs_target = Configs_target() # THis is OK???
+
+if args.batch is not None:
+        configs.target_batch_size = args.batch
+        configs_target.target_batch_size = args.batch
 
 # # ##### fix random seeds for reproducibility ########
 SEED = args.seed
@@ -106,28 +115,29 @@ targetdata_path = f"../datasets/{targetdata}"
 subset = False # if subset= true, use a subset for debugging.
 train_dl, valid_dl, test_dl = data_generator(sourcedata_path, targetdata_path, configs, configs_target, training_mode, subset = subset, percent=args.percent)
 logger.debug("Data loaded ...")
+logger.debug(f"Training mode = {training_mode}")
 
-# Load Model
-"""Here are two models, one basemodel, another is temporal contrastive model"""
-# model = Time_Model(configs).to(device)
-# model_F = Frequency_Model(configs).to(device) #base_Model_F(configs).to(device) """here is right. No bug in this line.
+n_pipes = 2 if args.single_pipe is None else 1
 TFC_model = TFC(configs).to(device)
-classifier = target_classifier(configs_target).to(device)
+classifier = target_classifier(configs_target, n_pipes).to(device)
 
 temporal_contr_model = None #TC(configs, device).to(device)
 
 
-# if training_mode == "fine_tune_test":
-#     # load saved model of this experiment
-#     load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description,
-#     f"pre_train_seed_{SEED}", "saved_models")) # 'experiments_logs/Exp1/run1/self_supervised_seed_0/saved_models'
-#     chkpoint = torch.load(os.path.join(load_from, "ckp_last.pt"), map_location=device) # two saved models: ['model_state_dict', 'temporal_contr_model_state_dict']
-#
-#     pretrained_dict = chkpoint["model_state_dict"] # Time domain parameters
-#     model_dict = TFC_model.state_dict()
-#     # pretrained_dict = remove_logits(pretrained_dict)
-#     model_dict.update(pretrained_dict)
-#     TFC_model.load_state_dict(model_dict)
+if training_mode == "fine_tune":
+    # load saved model of this experiment
+    load_from = os.path.join(os.path.join(logs_save_dir, experiment_description, run_description,
+    f"pre_train_seed_{SEED}", "saved_models")) # 'experiments_logs/Exp1/run1/self_supervised_seed_0/saved_models'
+    pretrained_weights = os.path.join(load_from, "ckp_last.pt")
+    logger.debug(f"Loading model from {pretrained_weights}!")
+    chkpoint = torch.load(pretrained_weights, map_location=device) # two saved models: ['model_state_dict', 'temporal_contr_model_state_dict']
+
+
+    pretrained_dict = chkpoint["model_state_dict"] # Time domain parameters
+    model_dict = TFC_model.state_dict()
+    # pretrained_dict = remove_logits(pretrained_dict)
+    model_dict.update(pretrained_dict)
+    TFC_model.load_state_dict(model_dict)
 
 
 model_optimizer = torch.optim.Adam(TFC_model.parameters(), lr=configs.lr, betas=(configs.beta1, configs.beta2), weight_decay=3e-4)
@@ -140,6 +150,6 @@ temporal_contr_optimizer = None # torch.optim.Adam(temporal_contr_model.paramete
 # Trainer
 Trainer(TFC_model,  temporal_contr_model, model_optimizer, temporal_contr_optimizer, train_dl, valid_dl, test_dl, device,
         logger, configs, configs_target, experiment_log_dir, training_mode, model_F=None, model_F_optimizer = None,
-        classifier=classifier, classifier_optimizer=classifier_optimizer, epochs=args.epochs)
+        classifier=classifier, classifier_optimizer=classifier_optimizer, epochs=args.epochs, pipes=args.single_pipe)
 
 logger.debug(f"Training time is : {datetime.now()-start_time}")
