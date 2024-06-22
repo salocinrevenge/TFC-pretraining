@@ -34,7 +34,7 @@ def DataTransform_TD(sample, config):
 
     li = np.random.randint(0, 4, size=[sample.shape[0]]) # there are two augmentations in Frequency domain
     li_onehot = one_hot_encoding(li)
-    aug_1[1-li_onehot[:, 0]] = 0 # the rows are not selected are set as zero.
+    aug_1[(1-li_onehot[:, 0]).astype(np.bool_)] = 0 # the rows are not selected are set as zero.
     #aug_2[1 - li_onehot[:, 1]] = 0
     #aug_3[1 - li_onehot[:, 2]] = 0
     ## aug_4[1 - li_onehot[:, 3]] = 0
@@ -49,8 +49,8 @@ def DataTransform_FD(sample, config):
     # generate random sequence
     li = np.random.randint(0, 2, size=[sample.shape[0]]) # there are two augmentations in Frequency domain
     li_onehot = one_hot_encoding(li)
-    aug_1[1-li_onehot[:, 0]] = 0 # the rows are not selected are set as zero.
-    aug_2[1 - li_onehot[:, 1]] = 0
+    aug_1[(1-li_onehot[:, 0]).astype(np.bool_)] = 0 # the rows are not selected are set as zero.
+    aug_2[(1 - li_onehot[:, 1]).astype(np.bool_)] = 0
     aug_F = aug_1 + aug_2
     return aug_F
 
